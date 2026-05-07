@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Pasaporte ferIA</title>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Montserrat:wght@300;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --uni-blue: #003366; /* Azul Institucional */
+            --uni-gold: #D4AF37; /* Dorado sutil */
+            --light-blue: #E8F0F8;
+            --white: #FFFFFF;
+            --tech-cyan: #00D1FF;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: radial-gradient(circle, #001f3f 0%, #000b18 100%);
+            margin: 0; padding: 15px;
+            display: flex; justify-content: center;
+            color: var(--uni-blue);
+        }
+
+        .passport-container {
+            width: 100%; max-width: 420px;
+            background: var(--white); border-radius: 20px;
+            box-shadow: 0 0 30px rgba(0, 209, 255, 0.3);
+            overflow: hidden; border: 2px solid var(--tech-cyan);
+            position: relative;
+        }
+
+        header { 
+            background: var(--uni-blue); color: var(--white); 
+            padding: 30px 15px; text-align: center;
+            border-bottom: 4px solid var(--uni-gold);
+        }
+        
+        header h1 { 
+            font-family: 'Orbitron', sans-serif; margin: 0; 
+            letter-spacing: 2px; font-size: 1.4rem;
+            text-transform: uppercase;
+        }
+
+        .user-badge { 
+            background: var(--light-blue); padding: 15px; 
+            border-bottom: 1px solid #ccc; text-align: center;
+            font-weight: 600; font-size: 0.9rem;
+        }
+
+        .islands-grid { padding: 20px; }
+
+        .island-card {
+            position: relative; padding: 20px; border-radius: 12px; 
+            color: var(--white); margin-bottom: 15px; 
+            text-align: left; transition: all 0.4s ease;
+            background: linear-gradient(135deg, #003366 0%, #001f3f 100%);
+            border-left: 5px solid #ccc;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .island-card.stamped {
+            border-left-color: var(--uni-gold);
+            background: linear-gradient(135deg, #004080 0%, #003366 100%);
+            box-shadow: inset 0 0 15px rgba(212, 175, 55, 0.3);
+        }
+
+        .island-info h2 { margin: 0; font-family: 'Orbitron'; font-size: 0.9rem; }
+        .island-info p { margin: 5px 0 0; font-size: 0.75rem; opacity: 0.8; }
+
+        .icon-container { width: 40px; height: 40px; fill: var(--white); opacity: 0.5; transition: 0.5s; }
+        .stamped .icon-container { fill: var(--uni-gold); opacity: 1; filter: drop-shadow(0 0 5px var(--uni-gold)); }
+
+        .btn-scan {
+            background: var(--uni-blue); color: var(--white);
+            width: 85%; margin: 10px auto 25px; display: block;
+            padding: 15px; border-radius: 8px; font-family: 'Orbitron';
+            border: 1px solid var(--tech-cyan); cursor: pointer; font-size: 0.9rem;
+            transition: 0.3s; box-shadow: 0 0 10px rgba(0, 209, 255, 0.2);
+        }
+
+        .btn-scan:hover { background: #004080; box-shadow: 0 0 20px var(--tech-cyan); }
+
+        #reader { width: 100%; display: none; background: #000; border-bottom: 2px solid var(--tech-cyan); }
+
+        .alert-success {
+            background: #e6fffa; color: #234e52; padding: 15px;
+            border: 1px solid #81e6d9; border-radius: 10px; margin: 15px; 
+            font-weight: bold; display: none; text-align: center;
+            font-family: 'Orbitron'; font-size: 0.8rem;
+        }
+
+        #registration-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000b18; color: var(--white);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
+        }
+
+        input { 
+            width: 80%; padding: 12px; margin: 10px 0; border-radius: 5px; 
+            border: 1px solid var(--tech-cyan); background: rgba(255,255,255,0.1); color: white;
+            text-align: center;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="registration-screen">
+        <h1 style="font-family: 'Orbitron'; color: var(--tech-cyan);">ferIA</h1>
+        <p style="font-size: 0.8rem; letter-spacing: 3px;">ACCESO INSTITUCIONAL</p>
+        <input type="text" id="reg-nombre" placeholder="Nombre Completo">
+        <input type="text" id="reg-codigo" placeholder="Código">
+        <input type="text" id="reg-asig" placeholder="Asignatura">
+        <button class="btn-scan" onclick="registrar()">INICIAR PASAPORTE</button>
+    </div>
+
+    <div class="passport-container hidden" id="passport">
+        <header>
+            <h1>mi pasaporte ferIA</h1>
+        </header>
+
+        <div class="user-badge">
+            <span id="u-name"></span><br>
+            <span id="u-asig" style="color: var(--uni-gold);"></span> | <span id="u-code" style="opacity: 0.7;"></span>
+        </div>
+
+        <div id="reader"></div>
+        <button class="btn-scan" id="btn-activar-scan" onclick="encenderCamara()">SCANNER QR</button>
+        <button class="btn-scan hidden" id="btn-cerrar-scan" style="background:#800000;" onclick="apagarCamara()">CANCELAR</button>
+
+        <div id="final-msg" class="alert-success">
+            SISTEMA COMPLETO: 100%<br>REGISTRADO EN BASE DE DATOS
+        </div>
+
+        <div class="islands-grid">
+            <div class="island-card" id="card-pedagogia">
+                <div class="island-info">
+                    <h2>1. PEDAGOGÍA</h2>
+                    <p>IA & Sociedad</p>
+                </div>
+                <div class="icon-container">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 13h2v2h-2v-2zm0-8h2v6h-2V7z"/></svg>
+                </div>
+            </div>
+
+            <div class="island-card" id="card-checkpoint">
+                <div class="island-info">
+                    <h2>2. CHECKPOINT</h2>
+                    <p>Verificación de Datos</p>
+                </div>
+                <div class="icon-container">
+                    <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                </div>
+            </div>
+
+            <div class="island-card" id="card-ruta">
+                <div class="island-info">
+                    <h2>3. RUTA DEMOCRÁTICA</h2>
+                    <p>Oportunidades & Becas</p>
+                </div>
+                <div class="icon-container">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L1 7l11 5 9-4.09V17h2V7L12 2zM5 13.18v2.81l7 3.19 7-3.19v-2.81l-7 3.19-7-3.19z"/></svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwwJWYYKpf8HeTZj3pW9XFDOOyESoZpHSZzFUu6LaflfnhNDZqV3ND2LvsoKvtEeSoC/exec"; 
+        let html5QrCode;
+        let progreso = JSON.parse(localStorage.getItem('feria_vFinal')) || { nombre: '', codigo: '', asig: '', sellos: [] };
+
+        function registrar() {
+            const n = document.getElementById('reg-nombre').value;
+            const c = document.getElementById('reg-codigo').value;
+            const a = document.getElementById('reg-asig').value;
+            if(n && c && a) {
+                progreso.nombre = n; progreso.codigo = c; progreso.asig = a;
+                localStorage.setItem('feria_vFinal', JSON.stringify(progreso));
+                iniciarApp();
+            } else {
+                alert("Por favor, completa todos los campos.");
+            }
+        }
+
+        function iniciarApp() {
+            document.getElementById('registration-screen').classList.add('hidden');
+            document.getElementById('passport').classList.remove('hidden');
+            document.getElementById('u-name').innerText = progreso.nombre.toUpperCase();
+            document.getElementById('u-code').innerText = "ID: " + progreso.codigo;
+            document.getElementById('u-asig').innerText = progreso.asig.toUpperCase();
+            actualizarSellosVisuales();
+        }
+
+        function actualizarSellosVisuales() {
+            progreso.sellos.forEach(s => {
+                const card = document.getElementById('card-' + s);
+                if(card) card.classList.add('stamped');
+            });
+            if(progreso.sellos.length === 3) {
+                document.getElementById('final-msg').style.display = 'block';
+            }
+        }
+
+        function encenderCamara() {
+            document.getElementById('reader').style.display = 'block';
+            document.getElementById('btn-activar-scan').classList.add('hidden');
+            document.getElementById('btn-cerrar-scan').classList.remove('hidden');
+
+            html5QrCode = new Html5Qrcode("reader");
+            const config = { fps: 15, qrbox: 250 };
+            html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess);
+        }
+
+        function onScanSuccess(decodedText) {
+            const validas = ["pedagogia", "checkpoint", "ruta"];
+            const cleanText = decodedText.toLowerCase().trim();
+            
+            if(validas.includes(cleanText)) {
+                if(!progreso.sellos.includes(cleanText)) {
+                    progreso.sellos.push(cleanText);
+                    localStorage.setItem('feria_vFinal', JSON.stringify(progreso));
+                    actualizarSellosVisuales();
+                    
+                    // Enviar avance al Excel
+                    const statusReport = `${progreso.sellos.length}/3 - Última: ${cleanText}`;
+                    enviarAlExcel(statusReport);
+                }
+                apagarCamara();
+            }
+        }
+
+        function enviarAlExcel(estado) {
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                body: JSON.stringify({
+                    nombre: progreso.nombre,
+                    codigo: progreso.codigo,
+                    asig: progreso.asig,
+                    sello: estado
+                })
+            }).then(() => console.log("Sincronizado con Excel: " + estado));
+        }
+
+        function apagarCamara() {
+            if(html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('reader').style.display = 'none';
+                    document.getElementById('btn-activar-scan').classList.remove('hidden');
+                    document.getElementById('btn-cerrar-scan').classList.add('hidden');
+                });
+            }
+        }
+
+        if(progreso.nombre) iniciarApp();
+    </script>
+</body>
+</html>
